@@ -28,9 +28,9 @@ def get_poker_advice_gemini(image_bytes):
     """
     
     try:
-        # תיקון השם לפורמט המלא הנדרש ע"י ה-API
+        # מעבר לגרסת המודל העדכנית והנתמכת ב-SDK החדש
         response = client.models.generate_content(
-            model='models/gemini-1.5-flash',
+            model='gemini-2.5-flash',
             contents=[
                 types.Part.from_bytes(
                     data=image_bytes,
