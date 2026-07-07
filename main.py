@@ -1,84 +1,77 @@
 import streamlit as st
-import cv2
-import numpy as np
-import pytesseract
-from groq import Groq
+from google import genai
+from google.genai import types
 
-# חיבור ל-API החינמי של Groq (מודל Llama 3)
-groq_key = st.secrets.get("GROQ_API_KEY", "")
-client = Groq(api_key=groq_key) if groq_key else None
+# חיבור ל-API החינמי של גוגל
+gemini_key = st.secrets.get("GEMINI_API_KEY", "")
+# שימוש בגרסה העדכנית ביותר של ה-SDK
+client = genai.Client(api_key=gemini_key) if gemini_key else None
 
-def get_poker_advice_free(raw_text_detected):
+def get_poker_advice_gemini(image_bytes):
     if not client:
-        return "ACTION: Configuration Error\nEXPLANATION: Please set GROQ_API_KEY in Streamlit Secrets."
+        return "ACTION: Configuration Error\nEXPLANATION: Please set GEMINI_API_KEY in Streamlit Secrets."
         
-    prompt = f"""
+    prompt = """
     You are a professional GTO Poker Tournament Coach. 
-    Look at the following raw text detected from a poker table screen via OCR:
-    "{raw_text_detected}"
+    Analyze this image of a poker table screen taken via a mobile phone camera.
     
-    Based on this data, figure out:
-    1. What are the player's cards?
-    2. What is the position or stack size if visible?
-    3. What is the best action (FOLD, CALL, RAISE, CHECK)?
+    Extract all critical data you can see:
+    1. Hero's cards.
+    2. Community cards (if any).
+    3. Hero's position and stack size in Big Blinds (BB).
+    4. Action history before Hero.
+    
+    Based on this data, determine the absolute best GTO play (FOLD, CALL, CHECK, or RAISE/PUSH with sizing).
     
     Respond STRICTLY in the following format (in English):
     ACTION: [Write only the action here, e.g., FOLD / RAISE 2.5BB / CALL]
-    EXPLANATION: [Write a professional, short explanation in English explaining the logic]
+    EXPLANATION: [Write a professional, short explanation in English explaining the strategic GTO logic behind this choice]
     """
     
     try:
-        # שימוש במודל Llama 3 החינמי והמהיר ביותר בעולם כיום
-        response = client.chat.completions.create(
-            model="llama3-8b-8192", 
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=250
+        # שליחת התמונה ישירות למודל החינמי והחזק של גוגל
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=[
+                types.Part.from_bytes(
+                    data=image_bytes,
+                    mime_type='image/jpeg',
+                ),
+                prompt
+            ]
         )
-        return response.choices[0].message.content
+        return response.text
     except Exception as e:
-        return "ACTION: Error\nEXPLANATION: AI server issue. Check your free API Key."
+        return "ACTION: Error\nEXPLANATION: Could not process image with Gemini. Check your API Key."
 
 # --- ממשק מובייל ---
-st.set_page_config(page_title="Free Poker AI Coach", layout="centered")
-st.title("🃏 Free Poker AI Coach")
-st.write("100% Free - Powered by Tesseract & Llama 3")
+st.set_page_config(page_title="Free Gemini Poker Coach", layout="centered")
+st.title("🃏 Free AI Poker Coach")
+st.write("100% Free - Powered by Google Gemini")
 
 img_file_buffer = st.camera_input("Capture Table Screen", label_visibility="collapsed")
 
 if img_file_buffer is not None:
-    bytes_data = img_file_buffer.getvalue()
-    # המרת התמונה למערך שמתאים לעיבוד תמונה
-    cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+    st.info("🧠 Gemini Vision is analyzing the image...")
     
-    st.info("🧠 Reading screen text for free...")
+    ai_response = get_poker_advice_gemini(img_file_buffer.getvalue())
     
-    # שלב ה-OCR החינמי של גוגל
-    gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
-    all_detected_text = pytesseract.image_to_string(gray)
-    
-    if not all_detected_text.strip():
-        st.warning("Could not find text. Try taking the photo closer or more straight.")
-    else:
-        st.info("🤖 AI is thinking...")
-        ai_response = get_poker_advice_free(all_detected_text)
-        
-        try:
-            action_part = ai_response.split("EXPLANATION:")[0].replace("ACTION:", "").strip()
-            explanation_part = ai_response.split("EXPLANATION:")[1].strip()
-        except:
-            action_part = "Analysis Failed"
-            explanation_part = "Could not parse response. Raw text was: " + all_detected_text
+    try:
+        action_part = ai_response.split("EXPLANATION:")[0].replace("ACTION:", "").strip()
+        explanation_part = ai_response.split("EXPLANATION:")[1].strip()
+    except:
+        action_part = "Analysis Failed"
+        explanation_part = "Could not parse response. Please ensure the image is clear and try again."
 
-        st.markdown("---")
-        st.subheader("Recommended Move:")
+    st.markdown("---")
+    st.subheader("Recommended Move:")
+    
+    if "FOLD" in action_part.upper():
+        st.error(f"🛑 {action_part}")
+    elif "RAISE" in action_part.upper() or "PUSH" in action_part.upper():
+        st.success(f"🚀 {action_part}")
+    else:
+        st.warning(f"⚠️ {action_part}")
         
-        if "FOLD" in action_part.upper():
-            st.error(f"🛑 {action_part}")
-        elif "RAISE" in action_part.upper() or "PUSH" in action_part.upper():
-            st.success(f"🚀 {action_part}")
-        else:
-            st.warning(f"⚠️ {action_part}")
-            
-        with st.expander("ℹ️ Show Detailed Logic & Raw Data"):
-            st.write(explanation_part)
-            st.caption(f"Raw data detected: {all_detected_text}")
+    with st.expander("ℹ️ Show Detailed Logic"):
+        st.write(explanation_part)
