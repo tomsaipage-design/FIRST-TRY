@@ -1,4 +1,4 @@
-opencv-python-headless
-easyocr
+opencv-python-headless==4.8.1.78
+easyocr==1.7.1
 openai
-numpy
+numpy<2.0.0
