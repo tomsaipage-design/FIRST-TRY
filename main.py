@@ -28,9 +28,9 @@ def get_poker_advice_gemini(image_bytes):
     """
     
     try:
-        # תיקון הפורמט עבור הספרייה החדשה של google-genai
+        # תיקון השם לפורמט המלא הנדרש ע"י ה-API
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='models/gemini-1.5-flash',
             contents=[
                 types.Part.from_bytes(
                     data=image_bytes,
@@ -41,7 +41,6 @@ def get_poker_advice_gemini(image_bytes):
         )
         return response.text
     except Exception as e:
-        # הצגת השגיאה האמיתית בתוך תפריט נפתח למקרה הצורך
         return f"ACTION: Error\nEXPLANATION: Could not process image. Technical details: {str(e)}"
 
 # --- ממשק מובייל ---
