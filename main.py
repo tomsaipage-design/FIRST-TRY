@@ -4,7 +4,6 @@ from google.genai import types
 
 # חיבור ל-API החינמי של גוגל
 gemini_key = st.secrets.get("GEMINI_API_KEY", "")
-# שימוש בגרסה העדכנית ביותר של ה-SDK
 client = genai.Client(api_key=gemini_key) if gemini_key else None
 
 def get_poker_advice_gemini(image_bytes):
@@ -29,20 +28,21 @@ def get_poker_advice_gemini(image_bytes):
     """
     
     try:
-        # שליחת התמונה ישירות למודל החינמי והחזק של גוגל
+        # תיקון הפורמט עבור הספרייה החדשה של google-genai
         response = client.models.generate_content(
             model='gemini-1.5-flash',
             contents=[
                 types.Part.from_bytes(
                     data=image_bytes,
-                    mime_type='image/jpeg',
+                    mime_type='image/jpeg'
                 ),
                 prompt
             ]
         )
         return response.text
     except Exception as e:
-        return "ACTION: Error\nEXPLANATION: Could not process image with Gemini. Check your API Key."
+        # הצגת השגיאה האמיתית בתוך תפריט נפתח למקרה הצורך
+        return f"ACTION: Error\nEXPLANATION: Could not process image. Technical details: {str(e)}"
 
 # --- ממשק מובייל ---
 st.set_page_config(page_title="Free Gemini Poker Coach", layout="centered")
@@ -60,8 +60,8 @@ if img_file_buffer is not None:
         action_part = ai_response.split("EXPLANATION:")[0].replace("ACTION:", "").strip()
         explanation_part = ai_response.split("EXPLANATION:")[1].strip()
     except:
-        action_part = "Analysis Failed"
-        explanation_part = "Could not parse response. Please ensure the image is clear and try again."
+        action_part = "Analysis Response Received"
+        explanation_part = ai_response
 
     st.markdown("---")
     st.subheader("Recommended Move:")
