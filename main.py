@@ -4,7 +4,7 @@ from openai import OpenAI
 
 # 1. הגדרת חיבור לבינה המלאכותית (OpenAI)
 # החלף את הטקסט במפתח שלך
-client = OpenAI(api_key="YOUR_OPENAI_API_KEY")
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 def get_poker_advice_from_image(image_bytes):
     # הפיכת התמונה לפורמט טקסטואלי (Base64) שניתן לשלוח ב-API
