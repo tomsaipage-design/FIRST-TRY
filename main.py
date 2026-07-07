@@ -4,18 +4,16 @@ import numpy as np
 import easyocr
 from openai import OpenAI
 
-# 1. הגדרת חיבור לבינה המלאכותית (OpenAI) לצורך קבלת ההסברים
-# יש להזין את ה-API Key שלך במערכת
-client = OpenAI(api_key="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")
+# 1. הגדרת חיבור לבינה המלאכותית (OpenAI)
+client = OpenAI(api_key="YOUR_OPENAI_API_KEY")
 
-# אתחול מנוע קריאת הטקסט (OCR) - תומך באנגלית ומספרים
+# אתחול מנוע קריאת הטקסט (OCR)
 @st.cache_resource
 def load_ocr():
     return easyocr.Reader(['en'])
 
 reader = load_ocr()
 
-# פונקציה ששולחת את הנתונים ל-ChatGPT ומבקשת החלטה והסבר
 def get_poker_advice(raw_text_detected):
     prompt = f"""
     You are a professional GTO Poker Tournament Coach. 
@@ -27,53 +25,47 @@ def get_poker_advice(raw_text_detected):
     2. What is the position or stack size if visible?
     3. What is the best action (FOLD, CALL, RAISE, CHECK)?
     
-    Respond STRICTLY in the following format (in Hebrew):
+    Respond STRICTLY in the following format (in English):
     ACTION: [Write only the action here, e.g., FOLD / RAISE 2.5BB / CALL]
-    EXPLANATION: [Write a professional, short explanation in Hebrew explaining the math or GTO logic behind this choice]
+    EXPLANATION: [Write a professional, short explanation in English explaining the math or GTO logic behind this choice]
     """
-    
     try:
         response = client.chat.completions.create(
-            model="gpt-4o", # מודל חזק ומהיר לניתוח
+            model="gpt-4o",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content
     except Exception as e:
-        return "ACTION: שגיאה\nEXPLANATION: לא מצליח להתחבר לשרת ה-AI. ודא שהקוד של OpenAI תקין."
+        return "ACTION: Error\nEXPLANATION: Server connection issue. Check API Key."
 
-# --- עיצוב ממשק האתר (UI) ---
+# --- עיצוב ממשק האתר מותאם למובייל ---
 st.set_page_config(page_title="Poker AI Coach", layout="centered")
-st.title("🃏 מאמן פוקר AI בזמן אמת")
-st.write("כוון את מצלמת הטלפון למסך הטורניר שלך לקבלת עצה מיידית")
+st.title("🃏 Poker AI Coach")
+st.write("Point your Android camera at the screen and take a shot.")
 
-# כפתור לפתיחת המצלמה ישירות בדפדפן (עובד מעולה גם מהנייד)
-img_file_buffer = st.camera_input("צלם את שולחן הפוקר")
+# שימוש ברכיב המצלמה המובנה שמבקש מהאנדרואיד להשתמש במצלמה האחורית (Environment)
+img_file_buffer = st.camera_input("Capture Table Screen", label_visibility="collapsed")
 
 if img_file_buffer is not None:
-    # הפיכת התמונה מהמצלמה לפורמט ש-Python מבין
     bytes_data = img_file_buffer.getvalue()
     cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
     
-    st.info("🧠 ה-AI מנתח את השולחן כעת...")
+    st.info("🧠 AI is analyzing the table...")
     
-    # שלב 2: קריאת הטקסט מהתמונה (OCR)
     results = reader.readtext(cv2_img, detail=0)
     all_detected_text = " ".join(results)
     
-    # שלב 3: שליחת הטקסט ל-ChatGPT לקבלת החלטה
     ai_response = get_poker_advice(all_detected_text)
     
-    # עיבוד התשובה והצגתה בצורה יפה על המסך
     try:
         action_part = ai_response.split("EXPLANATION:")[0].replace("ACTION:", "").strip()
         explanation_part = ai_response.split("EXPLANATION:")[1].strip()
     except:
-        action_part = "ניתוח נכשל"
-        explanation_part = "הבינה המלאכותית לא הצליחה לקרוא את הנתונים בבירור. נסה לצלם מזווית ישרה יותר."
+        action_part = "Analysis Failed"
+        explanation_part = "Could not read data clearly. Try taking the photo from a straighter angle."
 
-    # הצגת המהלך המומלץ בכותרת ענקית וצבעונית
     st.markdown("---")
-    st.subheader("המהלך המומלץ:")
+    st.subheader("Recommended Move:")
     
     if "FOLD" in action_part.upper():
         st.error(f"🛑 {action_part}")
@@ -82,7 +74,6 @@ if img_file_buffer is not None:
     else:
         st.warning(f"⚠️ {action_part}")
         
-    # כפתור נפתח (אלקורדיון) שמציג את ההסבר רק אם המשתמש לוחץ עליו
-    with st.expander("ℹ️ לחץ כאן להסבר המחשבה מאחורי המהלך"):
+    with st.expander("ℹ️ Show Detailed Logic"):
         st.write(explanation_part)
-        st.caption(f"נתונים גולמיים שנראו במסך: {all_detected_text}")
+        st.caption(f"Raw data detected: {all_detected_text}")
